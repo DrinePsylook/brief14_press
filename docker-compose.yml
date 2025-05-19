@@ -1,0 +1,75 @@
+services:
+  mongo:
+    container_name: mongodb_container
+    image: mongo
+    ports:
+      - 27017:27017
+    volumes:
+      - ./.database/:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+    networks:
+      - mongo_compose_network
+    
+
+  mongo-express:
+    container_name: mongo-express
+    image: mongo-express
+    ports:
+      - 8081:8081
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=${MONGO_USERNAME}
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=${MONGO_PASSWORD}
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_USERNAME}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${MONGO_PASSWORD}
+    depends_on:
+      mongo:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - ./.database/:/data/db
+    networks:
+      - mongo_compose_network
+
+  populate:
+    build: ./populate
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_USERNAME=${MONGO_USERNAME}
+      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - MONGO_HOST=mongo
+    volumes:
+      - type: bind
+        source: ./populate/app
+        target: /code/app
+    networks:
+      - mongo_compose_network
+
+  api:
+    build: ./api
+    ports:
+      - 8000:80
+    volumes:
+      - type: bind
+        source: ./api/app
+        target: /code/app
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_USERNAME=${MONGO_USERNAME}
+      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - MONGO_HOST=mongo
+    networks:
+      - mongo_compose_network
+
+networks:
+  mongo_compose_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

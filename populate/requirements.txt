@@ -1,0 +1,9 @@
+pandas
+python-dotenv
+
+#parquet
+pyarrow
+fastparquet
+
+#database
+pymongo
